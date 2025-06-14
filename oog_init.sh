@@ -218,26 +218,6 @@ setup_git_configs() {
     fi
 }
 
-# Function to remove config include
-remove_config_include() {
-    local config_file="$1"
-    local target_file="$2"
-    local include_pattern="# Include $config_file"
-    
-    if [ -f "$target_file" ]; then
-        # Create a temporary file
-        local temp_file=$(mktemp)
-        
-        # Remove the include lines
-        sed "/$include_pattern/,+1d" "$target_file" > "$temp_file"
-        
-        # Replace the original file
-        mv "$temp_file" "$target_file"
-        
-        print_status "Removed $config_file from $target_file"
-    fi
-}
-
 # Function to list all included configs
 list_configs() {
     print_status "Currently included configurations:"
@@ -273,99 +253,6 @@ list_configs() {
     fi
 }
 
-# Function to remove a configuration
-remove_config() {
-    local config_file
-
-    if [ ! -z "$2" ]; then
-        config_file="$2"
-    else
-        local configs=()
-        local config_dir="$CONFIG_DIR"
-
-        # Find all config files in the tree
-        while IFS= read -r file; do
-            configs+=("$file")
-        done < <(find "$config_dir" -type f | sort)
-
-        if [ ${#configs[@]} -eq 0 ]; then
-            print_error "No configuration files found in $config_dir!"
-            exit 1
-        fi
-
-        # Print the list BEFORE the prompt
-        for idx in "${!configs[@]}"; do
-            printf "%d) %s\n" $((idx+1)) "${configs[$idx]}"
-        done
-
-        # Prompt for selection
-        local selection=""
-        while true; do
-            read -p "#? " selection
-            if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#configs[@]} ]; then
-                config_file="${configs[$((selection-1))]}"
-                break
-            else
-                print_error "Invalid selection. Please try again."
-            fi
-        done
-    fi
-
-    local target_file
-
-    # Determine the target file based on the config file
-    case "$config_file" in
-        *"vim_config.vim")
-            target_file="$HOME/.vimrc"
-            ;;
-        *"nvim_config.vim")
-            target_file="$HOME/.config/nvim/init.vim"
-            ;;
-        *"bash_config.sh"|*"common_aliases.sh")
-            target_file="$HOME/.bashrc"
-            ;;
-        *"git_config")
-            target_file="$HOME/.gitconfig"
-            ;;
-        *)
-            print_error "Unknown configuration file: $config_file"
-            exit 1
-            ;;
-    esac
-
-    # Check if the target file exists
-    if [ ! -f "$target_file" ]; then
-        print_error "Target file not found: $target_file"
-        exit 1
-    fi
-
-    # Check if the config is actually included
-    if ! grep -F "source $config_file" "$target_file" > /dev/null; then
-        print_error "Configuration not found in $target_file"
-        exit 1
-    fi
-
-    # Confirm removal
-    print_status "Removing configuration: $config_file"
-    print_warning "This will remove the configuration from $target_file"
-    read -p "Continue? [y/N] " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_status "Remove cancelled"
-        exit 1
-    fi
-
-    # Remove the include line (compatible with both Linux and macOS)
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "/source $config_file/d" "$target_file"
-    else
-        sed -i "/source $config_file/d" "$target_file"
-    fi
-
-    print_status "Configuration removed successfully!"
-    print_status "Please restart your terminal to apply changes"
-}
-
 # Function to display help
 show_help() {
     echo "Usage: $0 [OPTION]"
@@ -375,14 +262,12 @@ show_help() {
     echo "  list           List current configurations"
     echo "  backups        List available backups"
     echo "  revert         Revert to a backup"
-    echo "  remove         Remove a configuration"
     echo
     echo "Examples:"
     echo "  $0                    # Run the full setup"
     echo "  $0 list              # List current configurations"
     echo "  $0 backups           # List available backups"
     echo "  $0 revert            # Revert to a backup"
-    echo "  $0 remove            # Remove a configuration"
     echo
     echo "Configuration Files:"
     echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
@@ -530,9 +415,6 @@ case "$1" in
         ;;
     "list")
         list_configs
-        ;;
-    "remove")
-        remove_config "$@"
         ;;
     *)
         main

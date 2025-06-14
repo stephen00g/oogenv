@@ -7,7 +7,7 @@ A modular and flexible environment setup script for macOS and Linux systems. Thi
 - **Modular Configuration**: Each component (aliases, shell configs, vim configs, etc.) is in its own file
 - **Cross-Platform**: Works on both macOS and Linux systems
 - **Safe Installation**: Creates backups before making changes
-- **Easy Management**: Add, remove, or list configurations easily
+- **Easy Management**: Add or list configurations easily
 - **Version Control Ready**: Easy to maintain in git and share across machines
 
 ## Directory Structure
@@ -62,11 +62,6 @@ A modular and flexible environment setup script for macOS and Linux systems. Thi
 - **List Current Configurations**:
   ```bash
   ./oog_init.sh list
-  ```
-
-- **Remove a Configuration**:
-  ```bash
-  ./oog_init.sh remove <config_file> <target_file>
   ```
 
 - **Revert to Previous State**:
