@@ -99,6 +99,7 @@ Plug 'preservim/nerdcommenter'
 Plug 'tpope/vim-surround'
 Plug 'tpope/vim-repeat'
 Plug 'jiangmiao/auto-pairs'
+Plug 'farmergreg/vim-lastplace'  " Remember last cursor position
 
 call plug#end()
 

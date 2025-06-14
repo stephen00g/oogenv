@@ -111,6 +111,9 @@ Plug 'tpope/vim-repeat'
 " Auto pairs
 Plug 'jiangmiao/auto-pairs'
 
+" Remember last cursor position
+Plug 'farmergreg/vim-lastplace'
+
 call plug#end()
 
 " Plugin configurations
