@@ -248,6 +248,62 @@ list_configs() {
     fi
 }
 
+# Function to remove a configuration
+remove_config() {
+    if [ -z "$2" ]; then
+        print_error "Please specify a configuration to remove"
+        echo
+        print_status "Available configurations:"
+        list_configs
+        exit 1
+    fi
+
+    local config_file="$2"
+    local target_file
+
+    # Determine the target file based on the config file
+    case "$config_file" in
+        *"vim_config.vim")
+            target_file="$HOME/.vimrc"
+            ;;
+        *"nvim_config.vim")
+            target_file="$HOME/.config/nvim/init.vim"
+            ;;
+        *"bash_config.sh")
+            target_file="$HOME/.bashrc"
+            ;;
+        *"common_aliases.sh")
+            target_file="$HOME/.bashrc"
+            ;;
+        *)
+            print_error "Unknown configuration file: $config_file"
+            echo
+            print_status "Available configurations:"
+            list_configs
+            exit 1
+            ;;
+    esac
+
+    # Check if the target file exists
+    if [ ! -f "$target_file" ]; then
+        print_error "Target file not found: $target_file"
+        exit 1
+    fi
+
+    # Check if the config is actually included
+    if ! grep -q "source.*$config_file" "$target_file"; then
+        print_error "Configuration not found in $target_file"
+        exit 1
+    fi
+
+    # Remove the include line
+    print_status "Removing configuration from $target_file"
+    sed -i "\|source.*$config_file|d" "$target_file"
+    
+    print_status "Configuration removed successfully!"
+    print_status "Please restart your terminal to apply changes"
+}
+
 # Function to display help
 show_help() {
     echo "Usage: $0 [OPTION]"
@@ -258,13 +314,14 @@ show_help() {
     echo "  backups        List available backups"
     echo "  revert         Revert to a backup"
     echo "  remove         Remove a configuration"
+    echo "                 Usage: $0 remove <config_file>"
     echo
     echo "Examples:"
     echo "  $0                    # Run the full setup"
     echo "  $0 list              # List current configurations"
     echo "  $0 backups           # List available backups"
     echo "  $0 revert            # Revert to a backup"
-    echo "  $0 remove ~/.vimrc   # Remove vim configuration"
+    echo "  $0 remove nvim_config.vim   # Remove neovim configuration"
     echo
     echo "Configuration Files:"
     echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
@@ -412,13 +469,7 @@ case "$1" in
         list_configs
         ;;
     "remove")
-        if [ -z "$2" ]; then
-            print_error "Please specify a config file to remove"
-            echo
-            show_help
-            exit 1
-        fi
-        remove_config_include "$2" "$3"
+        remove_config "$@"
         ;;
     *)
         main
