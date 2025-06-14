@@ -260,8 +260,8 @@ select_config_to_remove() {
     local -a config_files
     local i=1
     local current_section=""
-    
-    # Get list of configurations
+
+    # Collect configs silently
     while IFS= read -r line; do
         if [[ $line == *"configurations:" ]]; then
             current_section="${line%:}"
@@ -273,18 +273,18 @@ select_config_to_remove() {
             ((i++))
         fi
     done < <(list_configs)
-    
+
     if [ ${#configs[@]} -eq 0 ]; then
         print_error "No configurations available to remove!"
         exit 1
     fi
-    
-    # Show the list of configurations
+
+    # Print the list to the user
     for i in "${!configs[@]}"; do
         printf "%d) %s\n" $((i+1)) "${configs[$i]}"
     done
-    
-    # Get user selection
+
+    # Prompt for selection
     read -p "#? " selection
     if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#configs[@]} ]; then
         echo "${config_files[$((selection-1))]}"
