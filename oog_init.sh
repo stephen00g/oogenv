@@ -226,6 +226,62 @@ list_configs() {
     fi
 }
 
+# Function to list backup states
+list_backups() {
+    if [ ! -d "$BACKUP_DIR" ]; then
+        print_error "No backup directory found!"
+        exit 1
+    fi
+
+    print_status "Available backup states:"
+    echo
+    echo "No. | Timestamp              | Files"
+    echo "----|----------------------|------------------"
+    
+    # Create an array to store backup names
+    local -a backups
+    local i=1
+    
+    # List all backups with their contents
+    while IFS= read -r backup; do
+        timestamp=$(echo "$backup" | sed 's/_/ /')
+        printf "%-3d | %-20s | " "$i" "$timestamp"
+        ls "$BACKUP_DIR/$backup" | tr '\n' ' '
+        echo
+        backups+=("$backup")
+        ((i++))
+    done < <(ls -t "$BACKUP_DIR")
+    
+    # Return the array of backups
+    echo "${backups[@]}"
+}
+
+# Function to select a backup interactively
+select_backup() {
+    local -a backups
+    readarray -t backups < <(list_backups | tail -n +4 | cut -d'|' -f2- | sed 's/^[[:space:]]*//')
+    
+    if [ ${#backups[@]} -eq 0 ]; then
+        print_error "No backups available!"
+        exit 1
+    fi
+    
+    echo
+    print_status "Select a backup to revert to:"
+    select backup in "${backups[@]}"; do
+        if [ -n "$backup" ]; then
+            # Extract the timestamp from the selected backup
+            local timestamp=$(echo "$backup" | awk '{print $1, $2}')
+            # Convert space to underscore for the directory name
+            timestamp=${timestamp// /_}
+            echo "$timestamp"
+            return 0
+        else
+            print_error "Invalid selection. Please try again."
+        fi
+    done
+}
+
 # Function to revert changes
 revert() {
     if [ ! -d "$BACKUP_DIR" ]; then
@@ -233,17 +289,38 @@ revert() {
         exit 1
     fi
     
-    # Get the most recent backup
-    local latest_backup=$(ls -t "$BACKUP_DIR" | head -n1)
-    if [ -z "$latest_backup" ]; then
-        print_error "No backups found!"
+    local backup_to_restore
+    
+    # If a specific backup is provided, use it
+    if [ ! -z "$2" ]; then
+        backup_to_restore="$2"
+        if [ ! -d "$BACKUP_DIR/$backup_to_restore" ]; then
+            print_error "Backup '$backup_to_restore' not found!"
+            echo
+            print_status "Available backups:"
+            list_backups
+            exit 1
+        fi
+    else
+        # Show interactive menu to select backup
+        backup_to_restore=$(select_backup)
+        if [ -z "$backup_to_restore" ]; then
+            print_status "Revert cancelled"
+            exit 1
+        fi
+    fi
+    
+    print_status "Reverting to backup: $backup_to_restore"
+    print_warning "This will overwrite your current configurations!"
+    read -p "Are you sure you want to continue? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_status "Revert cancelled"
         exit 1
     fi
     
-    print_status "Reverting to backup: $latest_backup"
-    
     # Restore files
-    cp -r "$BACKUP_DIR/$latest_backup/"* "$HOME/"
+    cp -r "$BACKUP_DIR/$backup_to_restore/"* "$HOME/"
     
     print_status "Revert completed successfully!"
     print_status "Please restart your terminal to apply changes"
@@ -256,15 +333,19 @@ show_help() {
     echo "Options:"
     echo "  -h, --help     Display this help message"
     echo "  list           List all currently included configurations"
+    echo "  list backups   List all available backup states"
     echo "  remove         Remove a specific configuration"
     echo "                 Usage: $0 remove <config_file> <target_file>"
-    echo "  revert         Revert to the previous configuration state"
+    echo "  revert         Revert to a previous configuration state"
+    echo "                 Usage: $0 revert [backup_timestamp]"
     echo
     echo "Examples:"
     echo "  $0                    # Run the full setup"
     echo "  $0 list              # List all configurations"
+    echo "  $0 list backups      # List all backup states"
+    echo "  $0 revert            # Revert to a backup (interactive menu)"
+    echo "  $0 revert 20240315_123456  # Revert to specific backup"
     echo "  $0 remove ~/.vimrc   # Remove vim configuration"
-    echo "  $0 revert            # Revert to previous state"
     echo
     echo "Configuration Files:"
     echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
@@ -304,10 +385,17 @@ case "$1" in
         show_help
         ;;
     "revert")
-        revert
+        revert "$@"
         ;;
     "list")
-        list_configs
+        case "$2" in
+            "backups")
+                list_backups
+                ;;
+            *)
+                list_configs
+                ;;
+        esac
         ;;
     "remove")
         if [ -z "$2" ]; then
