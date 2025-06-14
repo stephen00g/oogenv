@@ -279,9 +279,7 @@ select_config_to_remove() {
         exit 1
     fi
     
-    echo
-    print_status "Select a configuration to remove:"
-    # Print each option on a new line
+    # Show the list of configurations
     for i in "${!configs[@]}"; do
         printf "%d) %s\n" $((i+1)) "${configs[$i]}"
     done
