@@ -131,6 +131,23 @@ setup_shell_configs() {
     fi
 }
 
+# Function to install vim plugins
+install_vim_plugins() {
+    print_status "Installing vim plugins..."
+    
+    # Install vim plugins
+    if command -v vim &> /dev/null; then
+        print_status "Installing vim plugins..."
+        vim +'PlugInstall --sync' +qa
+    fi
+    
+    # Install neovim plugins
+    if command -v nvim &> /dev/null; then
+        print_status "Installing neovim plugins..."
+        nvim +'PlugInstall --sync' +qa
+    fi
+}
+
 # Function to setup vim configurations
 setup_vim_configs() {
     print_status "Setting up vim configurations..."
@@ -186,8 +203,10 @@ setup_vim_configs() {
         echo "source $CONFIG_DIR/vim/nvim_config.vim" > "$HOME/.config/nvim/init.vim"
     fi
     
+    # Install plugins automatically
+    install_vim_plugins
+    
     print_status "Vim configurations setup complete!"
-    print_status "Please run :PlugInstall in vim/neovim to install plugins"
 }
 
 # Setup git configurations
