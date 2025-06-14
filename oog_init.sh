@@ -248,17 +248,61 @@ list_configs() {
     fi
 }
 
-# Function to remove a configuration
-remove_config() {
-    if [ -z "$2" ]; then
-        print_error "Please specify a configuration to remove"
-        echo
-        print_status "Available configurations:"
-        list_configs
+# Function to select a configuration to remove
+select_config_to_remove() {
+    local -a configs
+    local -a config_files
+    local i=1
+    local current_section=""
+    
+    # Get list of configurations
+    while IFS= read -r line; do
+        if [[ $line == *"configurations:" ]]; then
+            current_section="${line%:}"
+            continue
+        fi
+        if [[ $line == /* ]]; then
+            configs+=("$current_section: $line")
+            config_files+=("$line")
+            ((i++))
+        fi
+    done < <(list_configs)
+    
+    if [ ${#configs[@]} -eq 0 ]; then
+        print_error "No configurations available to remove!"
         exit 1
     fi
+    
+    echo
+    print_status "Select a configuration to remove:"
+    select config in "${configs[@]}"; do
+        if [ -n "$config" ]; then
+            # Extract the config file path
+            local config_file="${config_files[$REPLY-1]}"
+            echo "$config_file"
+            return 0
+        else
+            print_error "Invalid selection. Please try again."
+        fi
+    done
+}
 
-    local config_file="$2"
+# Function to remove a configuration
+remove_config() {
+    local config_file
+    
+    # If a specific config is provided, use it
+    if [ ! -z "$2" ]; then
+        config_file="$2"
+    else
+        # Show interactive menu to select config
+        config_file=$(select_config_to_remove)
+        if [ -z "$config_file" ]; then
+            print_status "Remove cancelled"
+            exit 1
+        fi
+    fi
+
     local target_file
 
     # Determine the target file based on the config file
@@ -269,17 +313,11 @@ remove_config() {
         *"nvim_config.vim")
             target_file="$HOME/.config/nvim/init.vim"
             ;;
-        *"bash_config.sh")
-            target_file="$HOME/.bashrc"
-            ;;
-        *"common_aliases.sh")
+        *"bash_config.sh"|*"common_aliases.sh")
             target_file="$HOME/.bashrc"
             ;;
         *)
             print_error "Unknown configuration file: $config_file"
-            echo
-            print_status "Available configurations:"
-            list_configs
             exit 1
             ;;
     esac
@@ -296,8 +334,17 @@ remove_config() {
         exit 1
     fi
 
+    # Confirm removal
+    print_status "Removing configuration: $config_file"
+    print_warning "This will remove the configuration from $target_file"
+    read -p "Continue? [y/N] " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        print_status "Remove cancelled"
+        exit 1
+    fi
+
     # Remove the include line
-    print_status "Removing configuration from $target_file"
     sed -i "\|source.*$config_file|d" "$target_file"
     
     print_status "Configuration removed successfully!"
@@ -314,14 +361,13 @@ show_help() {
     echo "  backups        List available backups"
     echo "  revert         Revert to a backup"
     echo "  remove         Remove a configuration"
-    echo "                 Usage: $0 remove <config_file>"
     echo
     echo "Examples:"
     echo "  $0                    # Run the full setup"
     echo "  $0 list              # List current configurations"
     echo "  $0 backups           # List available backups"
     echo "  $0 revert            # Revert to a backup"
-    echo "  $0 remove nvim_config.vim   # Remove neovim configuration"
+    echo "  $0 remove            # Remove a configuration"
     echo
     echo "Configuration Files:"
     echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
