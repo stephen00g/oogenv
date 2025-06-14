@@ -329,7 +329,7 @@ remove_config() {
     fi
 
     # Check if the config is actually included
-    if ! grep -q "source.*$config_file" "$target_file"; then
+    if ! grep -F "source $config_file" "$target_file" > /dev/null; then
         print_error "Configuration not found in $target_file"
         exit 1
     fi
@@ -345,7 +345,7 @@ remove_config() {
     fi
 
     # Remove the include line
-    sed -i "\|source.*$config_file|d" "$target_file"
+    sed -i "\|source $config_file|d" "$target_file"
     
     print_status "Configuration removed successfully!"
     print_status "Please restart your terminal to apply changes"
