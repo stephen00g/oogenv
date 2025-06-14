@@ -172,7 +172,13 @@ setup_vim_configs() {
     # Check if init.vim exists
     if [ -f "$HOME/.config/nvim/init.vim" ]; then
         # Remove any existing include lines
-        sed -i '/source.*nvim_config.vim/d' "$HOME/.config/nvim/init.vim"
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            sed -i '' '/source.*nvim_config.vim/d' "$HOME/.config/nvim/init.vim"
+        else
+            # Linux
+            sed -i '/source.*nvim_config.vim/d' "$HOME/.config/nvim/init.vim"
+        fi
         # Add include line
         echo "source $CONFIG_DIR/vim/nvim_config.vim" >> "$HOME/.config/nvim/init.vim"
     else
@@ -344,8 +350,14 @@ remove_config() {
         exit 1
     fi
 
-    # Remove the include line
-    sed -i "\|source $config_file|d" "$target_file"
+    # Remove the include line (compatible with both Linux and macOS)
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS
+        sed -i '' "/source $config_file/d" "$target_file"
+    else
+        # Linux
+        sed -i "/source $config_file/d" "$target_file"
+    fi
     
     print_status "Configuration removed successfully!"
     print_status "Please restart your terminal to apply changes"
@@ -391,7 +403,8 @@ list_backups() {
     
     local i=1
     while IFS= read -r backup; do
-        timestamp=$(echo "$backup" | sed 's/_/ /')
+        # Convert timestamp format (works on both Linux and macOS)
+        timestamp=$(echo "$backup" | tr '_' ' ')
         printf "%-3d | %-20s | " "$i" "$timestamp"
         if [ -d "$BACKUP_DIR/$backup" ]; then
             ls "$BACKUP_DIR/$backup" | tr '\n' ' '
@@ -408,7 +421,8 @@ select_backup() {
     
     # Get list of backups
     while IFS= read -r backup; do
-        timestamp=$(echo "$backup" | sed 's/_/ /')
+        # Convert timestamp format (works on both Linux and macOS)
+        timestamp=$(echo "$backup" | tr '_' ' ')
         timestamps+=("$timestamp")
         ((i++))
     done < <(ls -t "$BACKUP_DIR")
