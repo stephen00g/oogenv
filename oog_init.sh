@@ -319,6 +319,7 @@ select_backup() {
     print_status "Select a backup to restore:"
     select timestamp in "${timestamps[@]}"; do
         if [ -n "$timestamp" ]; then
+            # Convert space to underscore for the directory name
             echo "${timestamp// /_}"
             return 0
         else
@@ -364,10 +365,14 @@ revert() {
     fi
     
     # Restore files
-    cp -r "$BACKUP_DIR/$backup_to_restore/"* "$HOME/"
-    
-    print_status "Restore completed successfully!"
-    print_status "Please restart your terminal to apply changes"
+    if [ -d "$BACKUP_DIR/$backup_to_restore" ]; then
+        cp -r "$BACKUP_DIR/$backup_to_restore/"* "$HOME/"
+        print_status "Restore completed successfully!"
+        print_status "Please restart your terminal to apply changes"
+    else
+        print_error "Backup directory not found: $BACKUP_DIR/$backup_to_restore"
+        exit 1
+    fi
 }
 
 # Main function
