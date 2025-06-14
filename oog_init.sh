@@ -260,11 +260,11 @@ select_config_to_remove() {
     local -a config_files
     local current_section=""
 
-    # Capture the output of list_configs into a variable
+    # Capture the output of list_configs into a variable (do not print)
     local config_lines
-    config_lines=$(list_configs)
+    config_lines="$(list_configs 2>/dev/null)"
 
-    # Read the configs from the variable, not from stdin
+    # Build the configs array
     while IFS= read -r line; do
         if [[ $line == *"configurations:" ]]; then
             current_section="${line%:}"
@@ -281,7 +281,7 @@ select_config_to_remove() {
         exit 1
     fi
 
-    # Print the list
+    # Print the list BEFORE the prompt
     for i in "${!configs[@]}"; do
         printf "%d) %s\n" $((i+1)) "${configs[$i]}"
     done
