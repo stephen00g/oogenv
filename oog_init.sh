@@ -131,35 +131,57 @@ setup_shell_configs() {
     fi
 }
 
-# Setup vim/nvim configurations
+# Function to setup vim configurations
 setup_vim_configs() {
-    print_status "Setting up vim/nvim configurations..."
+    print_status "Setting up vim configurations..."
     
-    # Create nvim config directory
+    # Create vim config directory if it doesn't exist
+    mkdir -p "$HOME/.vim"
+    
+    # Create neovim config directory if it doesn't exist
     mkdir -p "$HOME/.config/nvim"
     
-    # Setup vim
-    if [ -f "$HOME/.vimrc" ]; then
-        add_config_include "$CONFIG_DIR/vim/vim_config.vim" "$HOME/.vimrc"
+    # Install vim-plug if not already installed
+    if [ ! -f "$HOME/.vim/autoload/plug.vim" ]; then
+        print_status "Installing vim-plug..."
+        curl -fLo "$HOME/.vim/autoload/plug.vim" --create-dirs \
+            https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
     fi
     
-    # Setup nvim
+    # Install vim-plug for neovim if not already installed
+    if [ ! -f "$HOME/.local/share/nvim/site/autoload/plug.vim" ]; then
+        print_status "Installing vim-plug for neovim..."
+        curl -fLo "$HOME/.local/share/nvim/site/autoload/plug.vim" --create-dirs \
+            https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+    fi
+    
+    # Create undo directory for neovim
+    mkdir -p "$HOME/.config/nvim/undodir"
+    
+    # Check if .vimrc exists
+    if [ -f "$HOME/.vimrc" ]; then
+        # Add include line if it doesn't exist
+        if ! grep -q "source $CONFIG_DIR/vim/vim_config.vim" "$HOME/.vimrc"; then
+            echo "source $CONFIG_DIR/vim/vim_config.vim" >> "$HOME/.vimrc"
+        fi
+    else
+        # Create .vimrc with include
+        echo "source $CONFIG_DIR/vim/vim_config.vim" > "$HOME/.vimrc"
+    fi
+    
+    # Check if init.vim exists
     if [ -f "$HOME/.config/nvim/init.vim" ]; then
         # Remove any existing include lines
-        sed -i '/# Include.*nvim_config.vim/d' "$HOME/.config/nvim/init.vim"
         sed -i '/source.*nvim_config.vim/d' "$HOME/.config/nvim/init.vim"
-        
-        # Add the include
-        echo -e "\n# Include $CONFIG_DIR/vim/nvim_config.vim" >> "$HOME/.config/nvim/init.vim"
+        # Add include line
         echo "source $CONFIG_DIR/vim/nvim_config.vim" >> "$HOME/.config/nvim/init.vim"
     else
-        # Create init.vim if it doesn't exist
-        echo -e "# Include $CONFIG_DIR/vim/nvim_config.vim" > "$HOME/.config/nvim/init.vim"
-        echo "source $CONFIG_DIR/vim/nvim_config.vim" >> "$HOME/.config/nvim/init.vim"
+        # Create init.vim with include
+        echo "source $CONFIG_DIR/vim/nvim_config.vim" > "$HOME/.config/nvim/init.vim"
     fi
     
-    # Create undodir for nvim
-    mkdir -p "$HOME/.config/nvim/undodir"
+    print_status "Vim configurations setup complete!"
+    print_status "Please run :PlugInstall in vim/neovim to install plugins"
 }
 
 # Setup git configurations
