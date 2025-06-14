@@ -260,7 +260,11 @@ select_config_to_remove() {
     local -a config_files
     local current_section=""
 
-    # Collect configs
+    # Capture the output of list_configs into a variable
+    local config_lines
+    config_lines=$(list_configs)
+
+    # Read the configs from the variable, not from stdin
     while IFS= read -r line; do
         if [[ $line == *"configurations:" ]]; then
             current_section="${line%:}"
@@ -270,7 +274,7 @@ select_config_to_remove() {
             configs+=("$current_section: $line")
             config_files+=("$line")
         fi
-    done < <(list_configs)
+    done <<< "$config_lines"
 
     if [ ${#configs[@]} -eq 0 ]; then
         print_error "No configurations available to remove!"
