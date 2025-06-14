@@ -226,6 +226,32 @@ list_configs() {
     fi
 }
 
+# Function to display help
+show_help() {
+    echo "Usage: $0 [OPTION]"
+    echo
+    echo "Options:"
+    echo "  -h, --help     Show this help message"
+    echo "  list           List current configurations"
+    echo "  backups        List available backups"
+    echo "  revert         Revert to a backup"
+    echo "  remove         Remove a configuration"
+    echo
+    echo "Examples:"
+    echo "  $0                    # Run the full setup"
+    echo "  $0 list              # List current configurations"
+    echo "  $0 backups           # List available backups"
+    echo "  $0 revert            # Revert to a backup"
+    echo "  $0 remove ~/.vimrc   # Remove vim configuration"
+    echo
+    echo "Configuration Files:"
+    echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
+    echo "  - Shell:        $CONFIG_DIR/shell/bash_config.sh"
+    echo "  - Vim:          $CONFIG_DIR/vim/vim_config.vim"
+    echo "  - Neovim:       $CONFIG_DIR/vim/nvim_config.vim"
+    echo "  - Git:          $CONFIG_DIR/git/git_config"
+}
+
 # Function to list backup states
 list_backups() {
     if [ ! -d "$BACKUP_DIR" ]; then
@@ -233,48 +259,45 @@ list_backups() {
         exit 1
     fi
 
-    print_status "Available backup states:"
+    print_status "Available backups:"
     echo
     echo "No. | Timestamp              | Files"
     echo "----|----------------------|------------------"
     
-    # Create an array to store backup names
-    local -a backups
     local i=1
-    
-    # List all backups with their contents
     while IFS= read -r backup; do
         timestamp=$(echo "$backup" | sed 's/_/ /')
         printf "%-3d | %-20s | " "$i" "$timestamp"
-        ls "$BACKUP_DIR/$backup" | tr '\n' ' '
+        if [ -d "$BACKUP_DIR/$backup" ]; then
+            ls "$BACKUP_DIR/$backup" | tr '\n' ' '
+        fi
         echo
-        backups+=("$backup")
         ((i++))
     done < <(ls -t "$BACKUP_DIR")
-    
-    # Return the array of backups
-    echo "${backups[@]}"
 }
 
 # Function to select a backup interactively
 select_backup() {
-    local -a backups
-    readarray -t backups < <(list_backups | tail -n +4 | cut -d'|' -f2- | sed 's/^[[:space:]]*//')
+    local -a timestamps
+    local i=1
     
-    if [ ${#backups[@]} -eq 0 ]; then
+    # Get list of backups
+    while IFS= read -r backup; do
+        timestamp=$(echo "$backup" | sed 's/_/ /')
+        timestamps+=("$timestamp")
+        ((i++))
+    done < <(ls -t "$BACKUP_DIR")
+    
+    if [ ${#timestamps[@]} -eq 0 ]; then
         print_error "No backups available!"
         exit 1
     fi
     
     echo
-    print_status "Select a backup to revert to:"
-    select backup in "${backups[@]}"; do
-        if [ -n "$backup" ]; then
-            # Extract the timestamp from the selected backup
-            local timestamp=$(echo "$backup" | awk '{print $1, $2}')
-            # Convert space to underscore for the directory name
-            timestamp=${timestamp// /_}
-            echo "$timestamp"
+    print_status "Select a backup to restore:"
+    select timestamp in "${timestamps[@]}"; do
+        if [ -n "$timestamp" ]; then
+            echo "${timestamp// /_}"
             return 0
         else
             print_error "Invalid selection. Please try again."
@@ -297,7 +320,6 @@ revert() {
         if [ ! -d "$BACKUP_DIR/$backup_to_restore" ]; then
             print_error "Backup '$backup_to_restore' not found!"
             echo
-            print_status "Available backups:"
             list_backups
             exit 1
         fi
@@ -305,56 +327,25 @@ revert() {
         # Show interactive menu to select backup
         backup_to_restore=$(select_backup)
         if [ -z "$backup_to_restore" ]; then
-            print_status "Revert cancelled"
+            print_status "Restore cancelled"
             exit 1
         fi
     fi
     
-    print_status "Reverting to backup: $backup_to_restore"
+    print_status "Restoring backup: $backup_to_restore"
     print_warning "This will overwrite your current configurations!"
-    read -p "Are you sure you want to continue? [y/N] " -n 1 -r
+    read -p "Continue? [y/N] " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        print_status "Revert cancelled"
+        print_status "Restore cancelled"
         exit 1
     fi
     
     # Restore files
     cp -r "$BACKUP_DIR/$backup_to_restore/"* "$HOME/"
     
-    print_status "Revert completed successfully!"
+    print_status "Restore completed successfully!"
     print_status "Please restart your terminal to apply changes"
-}
-
-# Function to display help
-show_help() {
-    echo "Usage: $0 [OPTION]"
-    echo
-    echo "Options:"
-    echo "  -h, --help     Display this help message"
-    echo "  list           List all currently included configurations"
-    echo "  list backups   List all available backup states"
-    echo "  remove         Remove a specific configuration"
-    echo "                 Usage: $0 remove <config_file> <target_file>"
-    echo "  revert         Revert to a previous configuration state"
-    echo "                 Usage: $0 revert [backup_timestamp]"
-    echo
-    echo "Examples:"
-    echo "  $0                    # Run the full setup"
-    echo "  $0 list              # List all configurations"
-    echo "  $0 list backups      # List all backup states"
-    echo "  $0 revert            # Revert to a backup (interactive menu)"
-    echo "  $0 revert 20240315_123456  # Revert to specific backup"
-    echo "  $0 remove ~/.vimrc   # Remove vim configuration"
-    echo
-    echo "Configuration Files:"
-    echo "  - Aliases:      $CONFIG_DIR/aliases/common_aliases.sh"
-    echo "  - Shell:        $CONFIG_DIR/shell/bash_config.sh"
-    echo "  - Vim:          $CONFIG_DIR/vim/vim_config.vim"
-    echo "  - Neovim:       $CONFIG_DIR/vim/nvim_config.vim"
-    echo "  - Git:          $CONFIG_DIR/git/git_config"
-    echo
-    echo "For more information, see the README.md file"
 }
 
 # Main function
@@ -387,15 +378,11 @@ case "$1" in
     "revert")
         revert "$@"
         ;;
+    "backups")
+        list_backups
+        ;;
     "list")
-        case "$2" in
-            "backups")
-                list_backups
-                ;;
-            *)
-                list_configs
-                ;;
-        esac
+        list_configs
         ;;
     "remove")
         if [ -z "$2" ]; then
