@@ -281,16 +281,20 @@ select_config_to_remove() {
     
     echo
     print_status "Select a configuration to remove:"
-    select config in "${configs[@]}"; do
-        if [ -n "$config" ]; then
-            # Extract the config file path
-            local config_file="${config_files[$REPLY-1]}"
-            echo "$config_file"
-            return 0
-        else
-            print_error "Invalid selection. Please try again."
-        fi
+    # Print each option on a new line
+    for i in "${!configs[@]}"; do
+        printf "%d) %s\n" $((i+1)) "${configs[$i]}"
     done
+    
+    # Get user selection
+    read -p "#? " selection
+    if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#configs[@]} ]; then
+        echo "${config_files[$((selection-1))]}"
+        return 0
+    else
+        print_error "Invalid selection. Please try again."
+        return 1
+    fi
 }
 
 # Function to remove a configuration
