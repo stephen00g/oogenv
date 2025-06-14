@@ -258,10 +258,9 @@ list_configs() {
 select_config_to_remove() {
     local -a configs
     local -a config_files
-    local i=1
     local current_section=""
 
-    # Collect configs silently
+    # Collect configs
     while IFS= read -r line; do
         if [[ $line == *"configurations:" ]]; then
             current_section="${line%:}"
@@ -270,7 +269,6 @@ select_config_to_remove() {
         if [[ $line == /* ]]; then
             configs+=("$current_section: $line")
             config_files+=("$line")
-            ((i++))
         fi
     done < <(list_configs)
 
@@ -279,7 +277,7 @@ select_config_to_remove() {
         exit 1
     fi
 
-    # Print the list to the user
+    # Print the list
     for i in "${!configs[@]}"; do
         printf "%d) %s\n" $((i+1)) "${configs[$i]}"
     done
@@ -298,12 +296,11 @@ select_config_to_remove() {
 # Function to remove a configuration
 remove_config() {
     local config_file
-    
+
     # If a specific config is provided, use it
     if [ ! -z "$2" ]; then
         config_file="$2"
     else
-        # Show interactive menu to select config
         config_file=$(select_config_to_remove)
         if [ -z "$config_file" ]; then
             print_status "Remove cancelled"
@@ -354,13 +351,11 @@ remove_config() {
 
     # Remove the include line (compatible with both Linux and macOS)
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS
         sed -i '' "/source $config_file/d" "$target_file"
     else
-        # Linux
         sed -i "/source $config_file/d" "$target_file"
     fi
-    
+
     print_status "Configuration removed successfully!"
     print_status "Please restart your terminal to apply changes"
 }
