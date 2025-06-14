@@ -254,62 +254,42 @@ list_configs() {
     fi
 }
 
-# Function to select a configuration to remove
-select_config_to_remove() {
-    local -a configs
-    local -a config_files
-    local current_section=""
-
-    # Capture the output of list_configs into a variable (do not print)
-    local config_lines
-    config_lines="$(list_configs 2>/dev/null)"
-
-    # Build the configs array
-    while IFS= read -r line; do
-        if [[ $line == *"configurations:" ]]; then
-            current_section="${line%:}"
-            continue
-        fi
-        if [[ $line == /* ]]; then
-            configs+=("$current_section: $line")
-            config_files+=("$line")
-        fi
-    done <<< "$config_lines"
-
-    if [ ${#configs[@]} -eq 0 ]; then
-        print_error "No configurations available to remove!"
-        exit 1
-    fi
-
-    # Print the list BEFORE the prompt
-    for i in "${!configs[@]}"; do
-        printf "%d) %s\n" $((i+1)) "${configs[$i]}"
-    done
-
-    # Prompt for selection
-    read -p "#? " selection
-    if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#configs[@]} ]; then
-        echo "${config_files[$((selection-1))]}"
-        return 0
-    else
-        print_error "Invalid selection. Please try again."
-        return 1
-    fi
-}
-
 # Function to remove a configuration
 remove_config() {
     local config_file
 
-    # If a specific config is provided, use it
     if [ ! -z "$2" ]; then
         config_file="$2"
     else
-        config_file=$(select_config_to_remove)
-        if [ -z "$config_file" ]; then
-            print_status "Remove cancelled"
+        local configs=()
+        local config_dir="$CONFIG_DIR"
+
+        # Find all config files in the tree
+        while IFS= read -r file; do
+            configs+=("$file")
+        done < <(find "$config_dir" -type f | sort)
+
+        if [ ${#configs[@]} -eq 0 ]; then
+            print_error "No configuration files found in $config_dir!"
             exit 1
         fi
+
+        # Print the list BEFORE the prompt
+        for idx in "${!configs[@]}"; do
+            printf "%d) %s\n" $((idx+1)) "${configs[$idx]}"
+        done
+
+        # Prompt for selection
+        local selection=""
+        while true; do
+            read -p "#? " selection
+            if [[ "$selection" =~ ^[0-9]+$ ]] && [ "$selection" -ge 1 ] && [ "$selection" -le ${#configs[@]} ]; then
+                config_file="${configs[$((selection-1))]}"
+                break
+            else
+                print_error "Invalid selection. Please try again."
+            fi
+        done
     fi
 
     local target_file
@@ -324,6 +304,9 @@ remove_config() {
             ;;
         *"bash_config.sh"|*"common_aliases.sh")
             target_file="$HOME/.bashrc"
+            ;;
+        *"git_config")
+            target_file="$HOME/.gitconfig"
             ;;
         *)
             print_error "Unknown configuration file: $config_file"
